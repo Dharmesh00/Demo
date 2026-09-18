@@ -11,3 +11,4 @@ SQLAlchemy==2.1.0rc2
 gunicorn==25.3.0
 psycopg-binary==3.3.5
 pip==26.2.1
+bleach==6.4.0
