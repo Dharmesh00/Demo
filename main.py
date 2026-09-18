@@ -2,7 +2,6 @@ from datetime import date
 from flask import Flask, abort, render_template, redirect, url_for, flash, request
 from flask_bootstrap import Bootstrap5
 from flask_ckeditor import CKEditor
-from flask_gravatar import Gravatar
 from flask_login import UserMixin, login_user, LoginManager, current_user, logout_user
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects import sqlite
@@ -12,6 +11,7 @@ from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from forms import CreatePostForm, RegisterForm, LoginForm, CommentForm
 import psycopg
+import hashlib
 import os
 # Optional: add contact me email functionality (Day 60)
 # import smtplib
@@ -48,15 +48,20 @@ def load_user(user_id):
 
 # For adding profile images to the comment section
 
+@app.template_filter('gravatar')
+def gravatar_filter(email):
+    email = email.strip().lower()
+    hash_email = hashlib.md5(email.encode()).hexdigest()
+    return f"https://www.gravatar.com/avatar/{hash_email}?d=identicon&s=100"
 
-gravatar = Gravatar(app,
-                    size=100,
-                    rating='g',
-                    default='retro',
-                    force_default=False,
-                    force_lower=False,
-                    use_ssl=False,
-                    base_url=None)
+#gravatar = Gravatar(app,
+#                     size=100,
+#                     rating='g',
+#                     default='retro',
+#                     force_default=False,
+#                     force_lower=False,
+#                     use_ssl=False,
+#                     base_url=None)
 
 # CREATE DATABASE
 class Base(DeclarativeBase):
