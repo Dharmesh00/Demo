@@ -1,62 +1,70 @@
 {% include "header.html" %}
 
 <!-- Page Header-->
-<header
-  class="masthead"
-  style="background-image: url('../static/assets/img/home-bg.jpg')"
->
+<header class="masthead" style="background-image: url('../static/assets/img/home-bg.jpg')">
   <div class="container position-relative px-4 px-lg-5">
     <div class="row gx-4 gx-lg-5 justify-content-center">
       <div class="col-md-10 col-lg-8 col-xl-7">
         <div class="site-heading">
           <h1>Blog</h1>
-          <span class="subheading">A collection of random musings.</span>
+          <span class="subheading">A collection of random blogs.</span>
         </div>
       </div>
     </div>
   </div>
 </header>
+
 <!-- Main Content-->
 <div class="container px-4 px-lg-5">
   <div class="row gx-4 gx-lg-5 justify-content-center">
-    <div class="col-md-10 col-lg-8 col-xl-7">
-      <!-- Post preview-->
-      {% for post in all_posts %}
-      <div class="post-preview">
-        <a href="{{ url_for('show_post', post_id=post.id) }}">
-          <h2 class="post-title">{{ post.title }}</h2>
-          <h3 class="post-subtitle">{{ post.subtitle }}</h3>
-        </a>
-        <p class="post-meta">
-          Posted by
-          <!-- post.author.name is now a User object -->
-          <a href="#">{{post.author.name}}</a>
-          on {{post.date}}
-          <!-- Only show delete button if user id is 1 (admin user) -->
-          {% if current_user.id == 1: %}
-          <a href="{{url_for('delete_post', post_id=post.id) }}">✘</a>
-          {% endif %}
-        </p>
+    <div class="col-md-12 col-lg-11 col-xl-10">
+      <!-- Blog Post Cards -->
+      <div class="row g-4">
+        {% for post in all_posts %}
+            <div class="card mb-4 shadow-sm border-0">
+                <div class="row g-0 align-items-center">
+                    <!-- Post Image -->
+                    <div class="col-md-4">
+                        {% if post.img_url %}
+                        <img src="{{ post.img_url }}" class="img-fluid rounded-start w-100" alt="{{ post.title }}"
+                             style="height: 220px; object-fit: cover;">
+                        {% else %}
+                        <img src="{{ url_for('static', filename='assets/img/post-bg.jpg') }}" class="card-img-top" alt="{{ post.title }}">
+                        {% endif %}
+                    </div>
+            <!-- Card Content -->
+                    <div class="col-md-8">
+                        <div class="card-body">
+                            <h3 class="card-title">{{ post.title }}</h3>
+                            <p class="card-text">{{ post.subtitle }}</p>
+                            <p class="text-muted mb-3">Posted by {{ post.author.name }}<br>{{ post.date }}</p>
+                            <!-- Post Actions -->
+                            <div class="d-flex align-items-center gap-2">
+                                <!-- Read More -->
+                                <a href="{{ url_for('show_post', post_id=post.id) }}" class="btn btn-primary">Read More →</a>
+                                <!-- Delete Post -->
+                                {% if current_user.is_authenticated and
+                                (current_user.id == post.author_id or current_user.id == 1) %}
+                                <form method="POST" action="{{ url_for('delete_post', post_id=post.id) }}" class="mb-0">
+                                    <button type="submit" class="btn btn-danger">Delete</button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+          {% endfor %}
       </div>
-      <!-- Divider-->
-      <hr class="my-4" />
-      {% endfor %}
-
       <!-- New Post -->
-      <!-- Only show Create Post button if user id is 1 (admin user) -->
-      {% if current_user.id == 1: %}
-      <div class="d-flex justify-content-end mb-4">
-        <a
-          class="btn btn-primary float-right"
-          href="{{url_for('add_new_post')}}"
-          >Create New Post</a
-        >
+      {% if current_user.is_authenticated %}
+      <div class="d-flex justify-content-end mt-4 mb-4">
+        <a class="btn btn-primary" href="{{ url_for('add_new_post') }}"> Create New Post </a>
       </div>
       {% endif %}
-
       <!-- Pager-->
       <div class="d-flex justify-content-end mb-4">
-        <a class="btn btn-secondary text-uppercase" href="#!">Older Posts →</a>
+        <a class="btn btn-secondary text-uppercase" href="#!"> Older Posts → </a>
       </div>
     </div>
   </div>

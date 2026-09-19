@@ -2,7 +2,7 @@ from datetime import date
 from flask import Flask, abort, render_template, redirect, url_for, flash, request
 from flask_bootstrap import Bootstrap5
 from flask_ckeditor import CKEditor
-from flask_login import UserMixin, login_user, LoginManager, current_user, logout_user
+from flask_login import UserMixin, login_user, LoginManager, current_user, logout_user, login_required
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects import sqlite
 from sqlalchemy.orm import relationship, DeclarativeBase, Mapped, mapped_column
@@ -32,7 +32,7 @@ This will install the packages from the requirements.txt for this project.
 
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('FLASK_KEY')
+app.config['SECRET_KEY'] = os.environ.get('FLASK_KEY', 'dev-secret-key')
 ckeditor = CKEditor(app)
 Bootstrap5(app)
 
@@ -43,7 +43,7 @@ login_manager.init_app(app)
 
 @login_manager.user_loader
 def load_user(user_id):
-    return db.get_or_404(User, user_id)
+    return db.session.get(User, user_id)
 
 
 # For adding profile images to the comment section
@@ -83,7 +83,7 @@ class BlogPost(db.Model):
     subtitle: Mapped[str] = mapped_column(String(250), nullable=False)
     date: Mapped[str] = mapped_column(String(250), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
-    img_url: Mapped[str] = mapped_column(String(250), nullable=False)
+    img_url: Mapped[str | None] = mapped_column(String(250), nullable=True)
     # Parent relationship to the comments
     comments = relationship("Comment", back_populates="parent_post")
 
@@ -124,10 +124,8 @@ with app.app_context():
 def admin_only(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # If id is not 1 then return abort with 403 error
-        if current_user.id != 1:
-            return abort(403)
-        # Otherwise continue with the route function
+        if not current_user.is_authenticated or current_user.id != 1:
+            abort(403)
         return f(*args, **kwargs)
 
     return decorated_function
@@ -225,9 +223,10 @@ def show_post(post_id):
 
 # Use a decorator so only an admin user can create new posts
 @app.route("/new-post", methods=["GET", "POST"])
-@admin_only
+@login_required
 def add_new_post():
     form = CreatePostForm()
+    print("IMG VALIDATORS:", form.img_url.validators)
     if form.validate_on_submit():
         new_post = BlogPost(
             title=form.title.data,
@@ -240,13 +239,21 @@ def add_new_post():
         db.session.add(new_post)
         db.session.commit()
         return redirect(url_for("get_all_posts"))
+    if request.method == "POST":
+        return f"<pre>{form.errors}</pre>"
+
     return render_template("make-post.html", form=form, current_user=current_user)
 
 
 # Use a decorator so only an admin user can edit a post
 @app.route("/edit-post/<int:post_id>", methods=["GET", "POST"])
+@login_required
 def edit_post(post_id):
     post = db.get_or_404(BlogPost, post_id)
+
+    if post.author_id != current_user.id and current_user.id != 1:
+        abort (403)
+
     edit_form = CreatePostForm(
         title=post.title,
         subtitle=post.subtitle,
@@ -258,21 +265,38 @@ def edit_post(post_id):
         post.title = edit_form.title.data
         post.subtitle = edit_form.subtitle.data
         post.img_url = edit_form.img_url.data
-        post.author = current_user
         post.body = edit_form.body.data
         db.session.commit()
         return redirect(url_for("show_post", post_id=post.id))
     return render_template("make-post.html", form=edit_form, is_edit=True, current_user=current_user)
 
-
 # Use a decorator so only an admin user can delete a post
-@app.route("/delete/<int:post_id>")
-@admin_only
+@app.route("/delete/<int:post_id>", methods=["POST"])
+@login_required
 def delete_post(post_id):
     post_to_delete = db.get_or_404(BlogPost, post_id)
+    if post_to_delete.author_id != current_user.id and current_user.id != 1:
+        abort (403)
+
     db.session.delete(post_to_delete)
     db.session.commit()
     return redirect(url_for('get_all_posts'))
+
+
+@app.route("/delete-comment/<int:comment_id>", methods=["POST"])
+@login_required
+def delete_comment(comment_id):
+    comment = db.get_or_404(Comment, comment_id)
+
+    if comment.author_id != current_user.id and current_user.id != 1:
+        abort(403)
+
+    post_id = comment.post_id
+
+    db.session.delete(comment)
+    db.session.commit()
+
+    return redirect(url_for("show_post", post_id=post_id))
 
 
 @app.route("/about")
@@ -309,4 +333,4 @@ def contact():
 
 
 if __name__ == "__main__":
-    app.run(debug=False, port=5001)
+    app.run(debug=True, port=5001)

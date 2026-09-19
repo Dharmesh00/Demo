@@ -2,20 +2,35 @@
 {% include "header.html" %}
 
 <!-- Page Header-->
-<header class="masthead" style="background-image: url('{{post.img_url}}')">
+<header
+  class="masthead"
+  {% if post.img_url %}
+  style="background-image: url('{{ post.img_url }}')"
+  {% else %}
+  style="background-image: url('/static/assets/img/post-bg.jpg')"
+  {% endif %}
+>
+  
   <div class="container position-relative px-4 px-lg-5">
     <div class="row gx-4 gx-lg-5 justify-content-center">
       <div class="col-md-10 col-lg-8 col-xl-7">
+
         <div class="post-heading">
+
           <h1>{{ post.title }}</h1>
-          <h2 class="subheading">{{ post.subtitle }}</h2>
-          <span class="meta"
-            >Posted by
-            <!-- Changed from post.author -->
+
+          <h2 class="subheading">
+            {{ post.subtitle }}
+          </h2>
+
+          <span class="meta">
+            Posted by
             <a href="#">{{ post.author.name }}</a>
             on {{ post.date }}
           </span>
+
         </div>
+
       </div>
     </div>
   </div>
@@ -26,44 +41,108 @@
   <div class="container px-4 px-lg-5">
     <div class="row gx-4 gx-lg-5 justify-content-center">
       <div class="col-md-10 col-lg-8 col-xl-7">
+
+        <!-- Blog Content -->
         {{ post.body|safe }}
-        <!--Only show Edit Post button if user id is 1 (admin user) -->
-        {% if current_user.id == 1 %}
+
+        <!-- Edit Post -->
+        {% if current_user.is_authenticated and
+              (current_user.id == post.author_id or current_user.id == 1) %}
+
         <div class="d-flex justify-content-end mb-4">
           <a
-            class="btn btn-primary float-right"
-            href="{{url_for('edit_post', post_id=post.id)}}"
-            >Edit Post</a
+            class="btn btn-primary"
+            href="{{ url_for('edit_post', post_id=post.id) }}"
           >
+            Edit Post
+          </a>
         </div>
+
         {% endif %}
 
+
         <!-- Comments Area -->
+
+        <hr class="my-4">
+
+        <h3 class="mb-4">Comments</h3>
+
         <!-- Load the CKEditor -->
         {{ ckeditor.load() }}
-        <!-- Configure it with the name of the form field from CommentForm -->
+
+        <!-- Configure CKEditor -->
         {{ ckeditor.config(name='comment_text') }}
-        <!-- Create the wtf quick form from CommentForm -->
-        {{ render_form(form, novalidate=True, button_map={"submit": "primary"}) }}
-        <div class="comment">
+
+        <!-- Comment Form -->
+        {% if current_user.is_authenticated %}
+
+          {{ render_form(
+              form,
+              novalidate=True,
+              button_map={"submit": "primary"}
+          ) }}
+
+        {% else %}
+
+          <p>
+            <a href="{{ url_for('login') }}">Login</a>
+            to leave a comment.
+          </p>
+
+        {% endif %}
+
+
+        <!-- Display Comments -->
+        <div class="comment mt-4">
+
           <ul class="commentList">
-            <!-- Show all comments -->
-            {% for comment in post.comments: %}
-            <li>
+
+            {% for comment in post.comments %}
+
+            <li class="mb-4">
+
               <div class="commenterImage">
+
                 <img
                   src="{{ comment.comment_author.email | gravatar }}"
+                  alt="{{ comment.comment_author.name }}"
                 />
+
               </div>
+
               <div class="commentText">
-                {{comment.text|safe}}
-                <span class="sub-text">{{comment.comment_author.name}}</span>
+
+                <!-- Comment Content -->
+                {{ comment.text | safe }}
+
+                <span class="sub-text">
+                  {{ comment.comment_author.name }}
+                </span>
+
+
+                <!-- Delete Comment -->
+                {% if current_user.is_authenticated and
+                      (current_user.id == comment.author_id or current_user.id == 1) %}
+
+                <a
+                  href="{{ url_for('delete_comment', comment_id=comment.id) }}"
+                  class="btn btn-sm btn-outline-danger ms-2"
+                >
+                  Delete
+                </a>
+
+                {% endif %}
+
               </div>
+
             </li>
+
             {% endfor %}
+
           </ul>
 
         </div>
+
       </div>
     </div>
   </div>
